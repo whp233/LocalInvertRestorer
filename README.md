@@ -133,7 +133,7 @@
 - 触感反馈只用在“点按生效”的动作上，避免滥用。
 
 界面截图在 [`docs/screens/`](docs/screens)，由 Robolectric 用真实布局 + 真实检测结果渲染，
-不是手绘稿。
+包含 7 张主界面与 5 张弹层（更多选项、检测报告、批量详情、反色更多、关于）。
 
 ## 7. 构建与安装
 
@@ -163,11 +163,12 @@ cd tools/jvmtest && gradle run --args="../../samples/demo_inverted.png /tmp"
 ./gradlew :app:testDebugUnitTest
 ```
 
-当前 7 个用例全部通过：
+当前 8 个用例全部通过：
 
 - `CoreTest` ×5：双区域检测、批量还原、还原后负样本、整图反色、框选反色；
 - `SmokeTest` ×1：三页签切换 + 布局加载；
-- `ScreenshotTest` ×1：真实渲染 7 张界面截图。
+- `ScreenshotTest` ×1：真实渲染 7 张主界面截图；
+- `SheetPreviewTest` ×1：渲染 5 张弹层，检查挤压与截断。
 
 ## 8. 目录结构
 
