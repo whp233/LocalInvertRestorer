@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 基础色板：以深色为主，琥珀色作为唯一强调色 -->
+    <color name="ink">#0B0E13</color>
+    <color name="surface_1">#12161C</color>
+    <color name="surface_2">#181D25</color>
+    <color name="surface_3">#222934</color>
+    <color name="stroke">#2C3541</color>
+    <color name="stroke_soft">#1F262F</color>
+
+    <color name="amber">#FFC53D</color>
+    <color name="on_amber">#231900</color>
+    <color name="amber_container">#4A3A0C</color>
+    <color name="on_amber_container">#FFE7A3</color>
+
+    <color name="mint">#5CD6BE</color>
+    <color name="mint_container">#113730</color>
+    <color name="on_mint_container">#B9F4E7</color>
+
+    <color name="text_primary">#F3F5F9</color>
+    <color name="text_secondary">#9BA5B3</color>
+    <color name="text_tertiary">#6B7684</color>
+
+    <color name="danger">#FF6B6B</color>
+    <color name="danger_container">#3A1618</color>
+
+    <color name="preview_bg">#05070A</color>
+    <color name="scrim">#B3000000</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+</resources>

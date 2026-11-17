@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp"
+    app:cardBackgroundColor="@color/surface_2"
+    app:cardCornerRadius="14dp"
+    app:cardElevation="0dp"
+    app:strokeColor="@color/stroke_soft"
+    app:strokeWidth="1dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:id="@+id/thumb"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:contentDescription="@string/cd_thumb"
+            android:scaleType="centerCrop"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <View
+            android:id="@+id/scrim"
+            android:layout_width="0dp"
+            android:layout_height="46dp"
+            android:background="@drawable/bg_thumb_scrim"
+            app:layout_constraintBottom_toBottomOf="@id/thumb"
+            app:layout_constraintEnd_toEndOf="@id/thumb"
+            app:layout_constraintStart_toStartOf="@id/thumb" />
+
+        <View
+            android:id="@+id/dim"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="#73000000"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/thumb"
+            app:layout_constraintEnd_toEndOf="@id/thumb"
+            app:layout_constraintStart_toStartOf="@id/thumb"
+            app:layout_constraintTop_toTopOf="@id/thumb" />
+
+        <TextView
+            android:id="@+id/name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="7dp"
+            android:ellipsize="middle"
+            android:maxLines="1"
+            android:textColor="#F2F4F8"
+            android:textSize="10sp"
+            app:layout_constraintBottom_toBottomOf="@id/thumb"
+            app:layout_constraintEnd_toEndOf="@id/thumb"
+            app:layout_constraintStart_toStartOf="@id/thumb" />
+
+        <TextView
+            android:id="@+id/index"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="7dp"
+            android:layout_marginTop="7dp"
+            android:background="@drawable/bg_scrim_pill"
+            android:minWidth="22dp"
+            android:paddingStart="7dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="7dp"
+            android:paddingBottom="2dp"
+            android:textColor="#F2F4F8"
+            android:textSize="10sp"
+            app:layout_constraintStart_toStartOf="@id/thumb"
+            app:layout_constraintTop_toTopOf="@id/thumb" />
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:layout_marginEnd="7dp"
+            android:background="@drawable/bg_badge"
+            android:paddingStart="7dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="7dp"
+            android:paddingBottom="2dp"
+            android:textColor="@color/text_primary"
+            android:textSize="10sp"
+            app:layout_constraintEnd_toEndOf="@id/thumb"
+            app:layout_constraintTop_toTopOf="@id/thumb" />
+
+        <ProgressBar
+            android:id="@+id/spinner"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:indeterminateTint="@color/amber"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/thumb"
+            app:layout_constraintEnd_toEndOf="@id/thumb"
+            app:layout_constraintStart_toStartOf="@id/thumb"
+            app:layout_constraintTop_toTopOf="@id/thumb" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -5,16 +5,18 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
+/** 一次还原任务：矩形 + 通道掩码。 */
+data class RestoreJob(val rect: RectI, val mask: Int)
+
 /**
  * 还原执行器。
  *
  * 只做两件事，都是可解释的：
  *  1. 对矩形内像素按检测出的通道掩码取反 —— 这是反色变换的逆运算，
  *     数学上严格可逆，还原出的就是原始数据。
- *  2. 用边界两侧的均值做一次**色调对齐**（增益限幅 0.75~1.35），
- *     再对边界做 3px 羽化。因为真实图片常是“先调色再反色”或经过 JPEG
- *     压缩，直接取反可能残留轻微色偏与硬边，这一步不是“猜内容”，
- *     只是让接缝消失。
+ *  2. 用边界两侧的均值做一次**色调对齐**（加性偏移限幅 ±15），
+ *     因为真实图片常是“先调色再反色”或经过 JPEG 压缩，
+ *     直接取反可能残留轻微色偏。这一步不是“猜内容”，只是让接缝消失。
  */
 object Restorer {
 
@@ -33,14 +35,50 @@ object Restorer {
 
         val pix = IntArray(w * h)
         bmp.getPixels(pix, 0, w, 0, 0, w, h)
-        var r = r0
+        applyOne(pix, w, h, r0, mask, matchTone, feather)
+        bmp.setPixels(pix, 0, w, 0, 0, w, h)
+        return bmp
+    }
 
+    /**
+     * 多个互不重叠的区域一次还原：只复制一次位图、只读写一次像素数组。
+     * 批量处理时用它，避免每个候选都整图复制一遍。
+     */
+    fun restoreMany(
+        src: Bitmap,
+        jobs: List<RestoreJob>,
+        matchTone: Boolean = true,
+        feather: Int = Tuning.FEATHER
+    ): Bitmap {
+        val bmp = src.copy(Bitmap.Config.ARGB_8888, true)
+        if (jobs.isEmpty()) return bmp
+        val w = bmp.width
+        val h = bmp.height
+        val pix = IntArray(w * h)
+        bmp.getPixels(pix, 0, w, 0, 0, w, h)
+        for (job in jobs) {
+            val r0 = job.rect.clampTo(w, h)
+            if (r0.w <= 2 || r0.h <= 2 || job.mask == 0) continue
+            applyOne(pix, w, h, r0, job.mask, matchTone, feather)
+        }
+        bmp.setPixels(pix, 0, w, 0, 0, w, h)
+        return bmp
+    }
+
+    private fun applyOne(
+        pix: IntArray,
+        w: Int,
+        h: Int,
+        rawRect: RectI,
+        mask: Int,
+        matchTone: Boolean,
+        feather: Int
+    ) {
         // 搜索阶段是在缩略图上做的，映射回原图会有 1~2px 的量化误差。
         // 误差虽小，却会漏掉一条“仍然是反色”的像素列/行，在边界留下细线。
         // 这里用真实像素把四条边各自对齐到落差最小的位置。
-        r = snapSides(pix, w, h, r, mask)
+        val r = snapSides(pix, w, h, rawRect, mask)
 
-        val k = max(2, feather)
         val offset = FloatArray(3)   // 逐通道的色调偏移（加性，比乘性增益稳健）
 
         if (matchTone) {
@@ -101,9 +139,6 @@ object Restorer {
                         fb.toInt().coerceIn(0, 255)
             }
         }
-
-        bmp.setPixels(pix, 0, w, 0, 0, w, h)
-        return bmp
     }
 
     /**
@@ -114,10 +149,6 @@ object Restorer {
      *   score = |内侧取反 - 外侧| / (|内侧 - 外侧| + 1)
      * 正确的边界处“取反后接得上”（分子小）且“本来就有落差”（分母大），比值极小；
      * 偏到边界外侧时两侧都很平滑、分子巨大，偏到内侧时分子同样下不来。
-     *
-     * 早先只用绝对残差，会掉进一个陷阱：一旦整段偏移都落在边界外侧的平滑区，
-     * 任何一对相邻像素都“差不多”，argmin 就变成随机挑一个，把边界带到沟里，
-     * 结果在边缘留下一列被错误取反的像素。
      */
     private fun snapSides(px: IntArray, w: Int, h: Int, r: RectI, mask: Int): RectI {
         val rad = 6

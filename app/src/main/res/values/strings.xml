@@ -1,4 +1,181 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">局部反色还原</string>
+    <string name="app_name">反色还原</string>
+
+    <!-- 底部导航 -->
+    <string name="tab_restore">还原</string>
+    <string name="tab_batch">批量</string>
+    <string name="tab_invert">反色</string>
+
+    <!-- 通用动作 -->
+    <string name="action_pick">选择图片</string>
+    <string name="action_add">添加</string>
+    <string name="action_save">保存</string>
+    <string name="action_share">分享</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_remove">移除</string>
+    <string name="action_close">关闭</string>
+    <string name="action_undo">撤销</string>
+    <string name="action_retry">重试</string>
+    <string name="action_reset">重置</string>
+    <string name="action_clear">清空</string>
+    <string name="action_apply">应用反色</string>
+    <string name="action_copy">复制</string>
+    <string name="action_more">更多选项</string>
+    <string name="action_stop">停止</string>
+    <string name="action_done">完成</string>
+    <string name="action_got_it">知道了</string>
+    <string name="action_share_result">分享</string>
+
+    <!-- 单张还原 -->
+    <string name="editor_title">单张还原</string>
+    <string name="editor_subtitle">找出被局部反色的区域，按原始像素还原</string>
+    <string name="editor_empty_title">找回被反色盖住的内容</string>
+    <string name="editor_empty_body">局部反色是逐像素取反，信息并没有丢失。\n应用会沿着接缝找出边界，再把颜色还原回去。</string>
+    <string name="editor_formats">支持 JPG / PNG / WebP · 全程本机处理</string>
+    <string name="editor_detect">自动检测</string>
+    <string name="editor_detecting">正在分析接缝…</string>
+    <string name="editor_recheck">重新检测</string>
+    <string name="editor_no_result">没有找到明显的反色区域，可以手动框选</string>
+    <string name="editor_manual_toast">已按手动框选判定，点“还原”应用</string>
+    <string name="editor_summary">检测到 %1$d 个可疑区域 · 可还原 %2$d 个</string>
+    <string name="editor_summary_none">未检测到可疑区域</string>
+    <string name="editor_restore">还原</string>
+    <string name="editor_restoring">正在还原…</string>
+    <string name="editor_restored_banner">已还原 %1$d 处 · %2$s</string>
+    <string name="editor_hold_compare">按住对比</string>
+    <string name="editor_original">原图</string>
+    <string name="editor_restored_chip">已还原</string>
+    <string name="editor_manual_mode">手动框选</string>
+    <string name="editor_manual_hint">在图片上拖出一个矩形，松手后自动判定</string>
+    <string name="editor_force_rgb">强制 RGB 还原</string>
+    <string name="editor_force_rgb_desc">用于只反色了部分通道、自动判定失败的情况</string>
+    <string name="editor_report">检测报告</string>
+    <string name="editor_reset">重置为原图</string>
+    <string name="editor_select_hint">点选区域，或直接还原</string>
+    <string name="editor_zoom_hint">双指缩放 · 双击放大 · 拖动平移</string>
+    <string name="editor_loading">正在读取图片…</string>
+    <string name="editor_saving">正在保存…</string>
+    <string name="editor_saved">已保存到相册 · %1$s</string>
+    <string name="editor_save_failed">保存失败，请重试</string>
+    <string name="editor_error_load">图片读取失败</string>
+    <string name="editor_busy_generic">处理中…</string>
+    <string name="editor_manual_none">该区域没有可逆的反色特征，原始信息很可能已被覆盖</string>
+    <string name="editor_need_select">先选择一个区域</string>
+    <string name="editor_rep_not_restorable">这个区域是被覆盖或涂抹的，像素信息已经丢失</string>
+    <string name="editor_already_restored">这个区域已经还原过了</string>
+    <string name="editor_restored_toast">已还原，按住对比看看效果</string>
+    <string name="editor_report_empty">还没有检测结果</string>
+    <string name="editor_reset_done">已恢复为原图</string>
+    <string name="editor_force_channel">已强制按 RGB 全通道还原</string>
+    <string name="editor_error_generic">处理失败，请重试</string>
+    <string name="suffix_restored">还原</string>
+    <string name="suffix_inverted">反色</string>
+
+    <!-- 批量 -->
+    <string name="batch_title">批量还原</string>
+    <string name="batch_subtitle">一次导入多张，逐张自动检测并还原</string>
+    <string name="batch_empty_title">一次处理一整批</string>
+    <string name="batch_empty_body">选中多张图片，应用会逐张找出反色区域并还原，结果暂存在本机。</string>
+    <string name="batch_pick">选择多张</string>
+    <string name="batch_limit">单次最多 30 张，处理完记得保存</string>
+    <string name="batch_summary">%1$d 张 · 已还原 %2$d 张</string>
+    <string name="batch_start">全部还原</string>
+    <string name="batch_stop">停止</string>
+    <string name="batch_running">正在处理 %1$d / %2$d</string>
+    <string name="batch_save_all">保存全部</string>
+    <string name="batch_clear">清空</string>
+    <string name="batch_clear_title">清空这些图片？</string>
+    <string name="batch_clear_body">已还原但尚未保存的结果会被删除。</string>
+    <string name="batch_clear_ok">清空</string>
+    <string name="batch_added">已添加 %1$d 张</string>
+    <string name="batch_add_failed">%1$d 张图片读取失败</string>
+    <string name="batch_importing">正在读取 %1$d / %2$d</string>
+    <string name="batch_status_running">识别中</string>
+    <string name="batch_status_done">已还原 %1$d 处</string>
+    <string name="batch_status_none">未发现反色</string>
+    <string name="batch_status_error">读取失败</string>
+    <string name="batch_status_pending">待处理</string>
+    <string name="batch_detail_title">第 %1$d 张</string>
+    <string name="batch_detail_info">已还原 %1$d 处 · %2$s</string>
+    <string name="batch_detail_none">没有找到可逆的反色区域</string>
+    <string name="batch_detail_open">在单张中编辑</string>
+    <string name="batch_detail_save">保存这张</string>
+    <string name="batch_saved">已保存 %1$d 张到相册</string>
+    <string name="batch_save_failed">保存失败，请重试</string>
+    <string name="batch_nothing">还没有可保存的结果</string>
+    <string name="batch_all_done">全部处理完成</string>
+    <string name="batch_removed">已移除</string>
+    <string name="batch_full">最多同时处理 30 张</string>
+    <string name="batch_error_decode">图片无法解码</string>
+
+    <!-- 反色工具 -->
+    <string name="invert_title">反色工具</string>
+    <string name="invert_subtitle">整图或框选反色，查看底片效果、制作标注</string>
+    <string name="invert_empty_title">把画面变成底片</string>
+    <string name="invert_empty_body">支持整图反色，也可以只框选一小块单独处理。反色可以随时撤销。</string>
+    <string name="invert_full">整图</string>
+    <string name="invert_region">框选</string>
+    <string name="invert_applied">已应用反色</string>
+    <string name="invert_region_hint">在图片上拖出要反色的矩形</string>
+    <string name="invert_region_none">先框选一个区域</string>
+    <string name="invert_region_info">已框选 %1$d × %2$d</string>
+    <string name="invert_full_hint">整图反色 · 点“应用反色”生效</string>
+    <string name="invert_applied_hint">已应用反色 · 拖动滑块对比原图</string>
+    <string name="invert_drag_hint">拖动滑块对比原图与反色结果</string>
+    <string name="invert_reset">恢复原图</string>
+    <string name="invert_saved">已保存到相册</string>
+    <string name="invert_original">原图</string>
+    <string name="invert_result">反色</string>
+
+    <!-- 关于 -->
+    <string name="about_title">关于与说明</string>
+    <string name="about_version">版本 %1$s · MIT 开源许可</string>
+    <string name="about_privacy_title">隐私</string>
+    <string name="about_privacy_body">所有图片只在本机内存中处理。应用不申请网络权限，不上传任何内容，也不会保留你没有保存的图片。</string>
+    <string name="about_principle_title">还原原理</string>
+    <string name="about_principle_body">局部反色是 c′ = 255 − c 的逐像素变换，数学上完全可逆。应用沿着接缝比较内外侧的像素落差，判断反色边界与通道，再取反还原为原始数值。</string>
+    <string name="about_limit_title">能力边界</string>
+    <string name="about_limit_body">反色可以精确还原；模糊、马赛克、贴图覆盖已经破坏原始像素，无法还原，应用也不会伪造内容。</string>
+    <string name="about_github">查看源码</string>
+    <string name="about_license_body">MIT License © 2026 whp233</string>
+    <string name="about_offline">离线运行 · 无需权限</string>
+
+    <!-- 检测报告 -->
+    <string name="report_title">检测报告</string>
+    <string name="report_summary">原图 %1$d × %2$d · 检测到 %3$d 个可疑区域，可还原 %4$d 个</string>
+    <string name="report_none">原图 %1$d × %2$d · 未检测到矩形接缝</string>
+    <string name="report_item">[%1$d] %2$s</string>
+    <string name="report_kind_inv">局部反色 · 置信度 %1$d%%</string>
+    <string name="report_kind_rep">覆盖 / 涂抹 · 不可逆</string>
+    <string name="report_seam">接缝落差 %1$.3f → %2$.3f（下降 %3$d%%）</string>
+    <string name="report_channel">还原通道：%1$s</string>
+    <string name="report_rep_detail">边界落差 %1$.3f，取反后没有改善，说明内容是被替换而不是反色。</string>
+    <string name="report_copied">已复制到剪贴板</string>
+
+    <!-- 候选与通道 -->
+    <string name="candidate_inv">反色</string>
+    <string name="candidate_rep">覆盖</string>
+    <string name="candidate_done_indexed">%1$d · 已还原</string>
+    <string name="candidate_done">已还原</string>
+    <string name="candidate_label">%1$d · %2$s %3$d%%</string>
+    <string name="mask_r">仅 R 通道</string>
+    <string name="mask_g">仅 G 通道</string>
+    <string name="mask_b">仅 B 通道</string>
+    <string name="mask_rg">R+G 双通道</string>
+    <string name="mask_rb">R+B 双通道</string>
+    <string name="mask_gb">G+B 双通道</string>
+    <string name="mask_rgb">RGB 全通道</string>
+    <string name="mask_none">无</string>
+
+    <!-- 无障碍 -->
+    <string name="cd_pick_image">选择图片</string>
+    <string name="cd_more">更多选项</string>
+    <string name="cd_about">关于与说明</string>
+    <string name="cd_close">关闭</string>
+    <string name="cd_remove">移除</string>
+    <string name="cd_thumb">图片缩略图</string>
+    <string name="cd_preview">图片预览</string>
+    <string name="cd_clear">清空列表</string>
+    <string name="cd_save">保存结果</string>
 </resources>

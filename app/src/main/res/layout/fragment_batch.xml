@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ink"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/screen_padding"
+        android:paddingTop="@dimen/header_top"
+        android:paddingEnd="@dimen/screen_padding"
+        android:paddingBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/batch_title"
+                android:textAppearance="@style/TextAppearance.InvRestore.Display" />
+
+            <TextView
+                android:id="@+id/tvSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/batch_subtitle"
+                android:textAppearance="@style/TextAppearance.InvRestore.Body" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAbout"
+            style="@style/Widget.InvRestore.IconButton"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:contentDescription="@string/cd_about"
+            app:icon="@drawable/ic_info" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/summaryRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:minHeight="38dp"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/screen_padding"
+        android:paddingEnd="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvSummary"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textAppearance="@style/TextAppearance.InvRestore.Label" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnStop"
+            style="@style/Widget.InvRestore.Button.Text.Danger"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/batch_stop"
+            android:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnClear"
+            style="@style/Widget.InvRestore.Button.Text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/batch_clear" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/progressRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/screen_padding"
+        android:paddingTop="2dp"
+        android:paddingEnd="@dimen/screen_padding"
+        android:paddingBottom="10dp"
+        android:visibility="gone">
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:indeterminate="false"
+            app:indicatorColor="@color/amber"
+            app:trackColor="@color/surface_3"
+            app:trackCornerRadius="2dp"
+            app:trackThickness="3dp" />
+
+        <TextView
+            android:id="@+id/tvProgress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textAppearance="@style/TextAppearance.InvRestore.Caption" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/grid"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:overScrollMode="never"
+            android:paddingStart="12dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="12dp"
+            android:visibility="gone" />
+
+        <ScrollView
+            android:id="@+id/emptyGroup"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingStart="30dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="30dp"
+                android:paddingBottom="28dp">
+
+                <ImageView
+                    android:layout_width="152dp"
+                    android:layout_height="152dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_art_batch" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center"
+                    android:text="@string/batch_empty_title"
+                    android:textColor="@color/text_primary"
+                    android:textSize="21sp"
+                    android:fontFamily="sans-serif-medium" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:lineSpacingExtra="4dp"
+                    android:maxWidth="320dp"
+                    android:text="@string/batch_empty_body"
+                    android:textAppearance="@style/TextAppearance.InvRestore.Body" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPick"
+                    android:layout_width="220dp"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="22dp"
+                    android:text="@string/batch_pick"
+                    app:icon="@drawable/ic_tab_batch" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center"
+                    android:text="@string/batch_limit"
+                    android:textAppearance="@style/TextAppearance.InvRestore.Caption" />
+            </LinearLayout>
+        </ScrollView>
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/actionBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/surface_1"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/stroke_soft" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="12dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAdd"
+                style="@style/Widget.InvRestore.Button.Outlined"
+                android:layout_width="52dp"
+                android:layout_height="@dimen/button_height"
+                android:contentDescription="@string/action_add"
+                android:paddingLeft="0dp"
+                android:paddingRight="0dp"
+                app:icon="@drawable/ic_add"
+                app:iconPadding="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRun"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/button_height"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp"
+                android:text="@string/batch_start"
+                app:icon="@drawable/ic_tab_restore"
+                app:iconPadding="6dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveAll"
+                style="@style/Widget.InvRestore.Button.Tonal"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/button_height"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp"
+                android:text="@string/batch_save_all"
+                app:icon="@drawable/ic_save"
+                app:iconPadding="6dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>
