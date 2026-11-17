@@ -1,6 +1,7 @@
 package com.invrestore.core
 
 import android.graphics.Bitmap
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -106,73 +107,108 @@ object Restorer {
     }
 
     /**
-     * 把矩形四条边各自微调（±3px），使“内侧取反后”与紧邻的外侧像素最接近。
-     * 正确的边界处残差接近 0，偏一格就会把仍是反色的像素或本该保留的像素算进来，
-     * 残差明显变大，所以这个一维搜索是锐利的。
+     * 把矩形四条边各自微调，抵消缩略图搜索带来的量化误差（缩放 0.4 倍时
+     * 1px 搜索误差 = 2.5px 原图误差，所以搜索半径给到 ±6）。
+     *
+     * 判据是**比值**而不是绝对残差：
+     *   score = |内侧取反 - 外侧| / (|内侧 - 外侧| + 1)
+     * 正确的边界处“取反后接得上”（分子小）且“本来就有落差”（分母大），比值极小；
+     * 偏到边界外侧时两侧都很平滑、分子巨大，偏到内侧时分子同样下不来。
+     *
+     * 早先只用绝对残差，会掉进一个陷阱：一旦整段偏移都落在边界外侧的平滑区，
+     * 任何一对相邻像素都“差不多”，argmin 就变成随机挑一个，把边界带到沟里，
+     * 结果在边缘留下一列被错误取反的像素。
      */
     private fun snapSides(px: IntArray, w: Int, h: Int, r: RectI, mask: Int): RectI {
-        val rad = 3
+        val rad = 6
         var l = r.l; var t = r.t; var rr = r.r; var b = r.b
 
-        fun valOf(c: Int, ch: Int): Int {
-            val v = when (ch) {
-                0 -> (c shr 16) and 0xFF
-                1 -> (c shr 8) and 0xFF
-                else -> c and 0xFF
+        fun chOf(c: Int, ch: Int) = (c shr (16 - 8 * ch)) and 0xFF
+
+        fun chVal(c: Int, ch: Int): Int {
+            val v = chOf(c, ch)
+            return if (mask and (1 shl ch) != 0) 255 - v else v
+        }
+
+        /** 返回 (取反后残差, 原始落差)，均为通道均值。 */
+        fun pairCost(inner: Int, outer: Int): FloatArray {
+            var res = 0f
+            var dif = 0f
+            for (ch in 0..2) {
+                val iv = chVal(inner, ch)
+                val ov = chOf(outer, ch)
+                res += abs(iv - ov)
+                dif += abs(chOf(inner, ch) - ov)
             }
-            val bit = 1 shl ch
-            return if (mask and bit != 0) 255 - v else v
+            return floatArrayOf(res / 3f, dif / 3f)
         }
 
-        fun diff(a: Int, b2: Int): Float {
-            var s = 0
-            for (ch in 0..2) s += kotlin.math.abs(valOf(a, ch) - ((b2 shr (16 - 8 * ch)) and 0xFF))
-            return s / 3f
+        fun pick(cost: (Int) -> FloatArray?): Int {
+            var best = 0
+            var bestScore = Float.MAX_VALUE
+            for (o in -rad..rad) {
+                val c = cost(o) ?: continue
+                val sc = c[0] / (c[1] + 1f)
+                if (sc < bestScore) { bestScore = sc; best = o }
+            }
+            return best
         }
 
-        var best = 0; var bestCost = Float.MAX_VALUE
-        for (o in -rad..rad) {
+        // 左边：比较 x 与 x-1
+        l = (r.l + pick { o ->
             val x = r.l + o
-            if (x <= 0 || x >= w) continue
-            var s = 0.0
-            for (y in r.t until r.b) s += diff(px[y * w + x], px[y * w + x - 1])
-            val c = (s / (r.b - r.t)).toFloat()
-            if (c < bestCost) { bestCost = c; best = o }
-        }
-        l = (r.l + best).coerceIn(1, w - 1)
+            if (x <= 0 || x >= w) null else {
+                var res = 0f; var dif = 0f
+                for (y in r.t until r.b) {
+                    val c = pairCost(px[y * w + x], px[y * w + x - 1])
+                    res += c[0]; dif += c[1]
+                }
+                val n = (r.b - r.t).toFloat()
+                floatArrayOf(res / n, dif / n)
+            }
+        }).coerceIn(1, w - 1)
 
-        best = 0; bestCost = Float.MAX_VALUE
-        for (o in -rad..rad) {
+        // 右边：比较 x 与 x+1（x 是最后一个内侧像素）
+        rr = (r.r + pick { o ->
             val x = r.r - 1 + o
-            if (x < 0 || x >= w - 1) continue
-            var s = 0.0
-            for (y in r.t until r.b) s += diff(px[y * w + x], px[y * w + x + 1])
-            val c = (s / (r.b - r.t)).toFloat()
-            if (c < bestCost) { bestCost = c; best = o }
-        }
-        rr = (r.r + best).coerceIn(l + 2, w)
+            if (x < 0 || x >= w - 1) null else {
+                var res = 0f; var dif = 0f
+                for (y in r.t until r.b) {
+                    val c = pairCost(px[y * w + x], px[y * w + x + 1])
+                    res += c[0]; dif += c[1]
+                }
+                val n = (r.b - r.t).toFloat()
+                floatArrayOf(res / n, dif / n)
+            }
+        }).coerceIn(l + 2, w)
 
-        best = 0; bestCost = Float.MAX_VALUE
-        for (o in -rad..rad) {
+        // 上边
+        t = (r.t + pick { o ->
             val y = r.t + o
-            if (y <= 0 || y >= h) continue
-            var s = 0.0
-            for (x in l until rr) s += diff(px[y * w + x], px[(y - 1) * w + x])
-            val c = (s / (rr - l)).toFloat()
-            if (c < bestCost) { bestCost = c; best = o }
-        }
-        t = (r.t + best).coerceIn(1, h - 1)
+            if (y <= 0 || y >= h) null else {
+                var res = 0f; var dif = 0f
+                for (x in l until rr) {
+                    val c = pairCost(px[y * w + x], px[(y - 1) * w + x])
+                    res += c[0]; dif += c[1]
+                }
+                val n = (rr - l).toFloat()
+                floatArrayOf(res / n, dif / n)
+            }
+        }).coerceIn(1, h - 1)
 
-        best = 0; bestCost = Float.MAX_VALUE
-        for (o in -rad..rad) {
+        // 下边：y 是最后一个内侧像素
+        b = (r.b + pick { o ->
             val y = r.b - 1 + o
-            if (y < 0 || y >= h - 1) continue
-            var s = 0.0
-            for (x in l until rr) s += diff(px[y * w + x], px[(y + 1) * w + x])
-            val c = (s / (rr - l)).toFloat()
-            if (c < bestCost) { bestCost = c; best = o }
-        }
-        b = (r.b + best).coerceIn(t + 2, h)
+            if (y < 0 || y >= h - 1) null else {
+                var res = 0f; var dif = 0f
+                for (x in l until rr) {
+                    val c = pairCost(px[y * w + x], px[(y + 1) * w + x])
+                    res += c[0]; dif += c[1]
+                }
+                val n = (rr - l).toFloat()
+                floatArrayOf(res / n, dif / n)
+            }
+        }).coerceIn(t + 2, h)
 
         return RectI(l, t, rr, b)
     }

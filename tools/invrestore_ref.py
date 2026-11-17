@@ -457,33 +457,43 @@ def detect(img: np.ndarray) -> list[Candidate]:
 
 
 # ---------------------------------------------------------------- restorer
-def snap_sides(img: np.ndarray, rc: Rect, mask: int, rad: int = 3) -> Rect:
-    """用真实像素逐边对齐（±rad），抵消缩略图搜索带来的量化误差。"""
+def snap_sides(img: np.ndarray, rc: Rect, mask: int, rad: int = 6) -> Rect:
+    """
+    用真实像素逐边对齐（±rad），抵消缩略图搜索带来的量化误差。
+
+    判据是比值 score = |内侧取反 - 外侧| / (|内侧 - 外侧| + 1)，不是绝对残差：
+    正确边界处“取反后接得上”且“本来就有落差”，比值极小；一旦整段偏移都落在
+    边界外侧的平滑区，绝对残差处处相近，argmin 会随机挑一个，把边界带偏。
+    """
     H, W = img.shape[:2]
+    bits = np.array([1, 2, 4])
 
-    def inv(v, bit):
-        return 255.0 - v if (mask & bit) else v
+    def pair_cost(inner, outer):
+        inv = np.where((mask & bits) > 0, 255.0 - inner, inner)
+        return np.abs(inv - outer).mean(), np.abs(inner - outer).mean()
 
-    def d2(a, b):  # 两个像素的通道平均差
-        return float(np.abs(np.array([inv(a[0], 1), inv(a[1], 2), inv(a[2], 4)])
-                            - np.array([b[0], b[1], b[2]])).mean())
-
-    def best_offset(costs):
-        return int(np.argmin(costs)) - rad
+    def pick(costs):
+        best, best_score = 0, np.inf
+        for o, (res, dif) in costs.items():
+            sc = res / (dif + 1.0)
+            if sc < best_score:
+                best_score, best = sc, o
+        return best
 
     l, t, r, b = rc.l, rc.t, rc.r, rc.b
-    l += best_offset([np.mean([d2(img[y, rc.l + o], img[y, rc.l + o - 1])
-                               for y in range(rc.t, rc.b)])
-                      for o in range(-rad, rad + 1) if 0 < rc.l + o < W])
-    r += best_offset([np.mean([d2(img[y, rc.r - 1 + o], img[y, rc.r - 1 + o + 1])
-                               for y in range(rc.t, rc.b)])
-                      for o in range(-rad, rad + 1) if 0 <= rc.r - 1 + o < W - 1])
-    t += best_offset([np.mean([d2(img[rc.t + o, x], img[rc.t + o - 1, x])
-                               for x in range(l, r)])
-                      for o in range(-rad, rad + 1) if 0 < rc.t + o < H])
-    b += best_offset([np.mean([d2(img[rc.b - 1 + o, x], img[rc.b - 1 + o + 1, x])
-                               for x in range(l, r)])
-                      for o in range(-rad, rad + 1) if 0 <= rc.b - 1 + o < H - 1])
+
+    l += pick({o: np.mean([pair_cost(img[y, rc.l + o], img[y, rc.l + o - 1])
+                           for y in range(rc.t, rc.b)], axis=0)
+               for o in range(-rad, rad + 1) if 0 < rc.l + o < W})
+    r += pick({o: np.mean([pair_cost(img[y, rc.r - 1 + o], img[y, rc.r - 1 + o + 1])
+                           for y in range(rc.t, rc.b)], axis=0)
+               for o in range(-rad, rad + 1) if 0 <= rc.r - 1 + o < W - 1})
+    t += pick({o: np.mean([pair_cost(img[rc.t + o, x], img[rc.t + o - 1, x])
+                           for x in range(l, r)], axis=0)
+               for o in range(-rad, rad + 1) if 0 < rc.t + o < H})
+    b += pick({o: np.mean([pair_cost(img[rc.b - 1 + o, x], img[rc.b - 1 + o + 1, x])
+                           for x in range(l, r)], axis=0)
+               for o in range(-rad, rad + 1) if 0 <= rc.b - 1 + o < H - 1})
     return Rect(l, t, r, b)
 
 
