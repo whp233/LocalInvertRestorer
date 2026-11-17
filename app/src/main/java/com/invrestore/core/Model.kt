@@ -28,6 +28,14 @@ object Tuning {
     /** 边缘二值化阈值（0..1）。 */
     const val EDGE_THRESHOLD = 0.055f
 
+    /**
+     * 反色接缝图的两个门槛（0..255 色彩单位）：
+     * 残差 = |内侧取反 - 外侧|，落差 = |内侧 - 外侧|。
+     * 残差小说明“取反后接得上”，落差大说明“这里本来就不是平坦区”。
+     */
+    const val SEAM_RESIDUAL = 40f
+    const val SEAM_MIN_STEP = 8f
+
     /** 参与配对的边缘游程上限，控制计算量。 */
     const val MAX_RUNS = 160
     const val MAX_RECTS = 400

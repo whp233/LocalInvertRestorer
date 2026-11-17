@@ -52,7 +52,9 @@ class InversionDetector {
             gray[i] = (((c shr 16) and 0xFF) + ((c shr 8) and 0xFF) + (c and 0xFF)) / 3f
         }
 
-        val rects = rectCandidates(gray, sw, sh)
+        val seamV = invSeamMap(px, sw, sh, vertical = true)
+        val seamH = invSeamMap(px, sw, sh, vertical = false)
+        val rects = rectCandidates(gray, seamV, seamH, sw, sh)
         val raw = ArrayList<Candidate>(rects.size)
 
         for (rc in rects) {
@@ -247,12 +249,70 @@ class InversionDetector {
     }
 
     /**
-     * 用“边缘游程配对”提出候选矩形：
-     * 局部反色/贴图工具几乎都会留下硬直的矩形边界，所以先找出长度足够的
-     * 垂直边缘游程，把起止高度接近的两条配成左右边，再验证上下边是否也
-     * 是连续边缘。
+     * 反色接缝图。逐像素判断“这里像不像一条反色边界”。
+     *
+     * 通用边缘图把所有强边都算进来，一条弱边（比如反色块的左边恰好压在与其
+     * 反相后很接近的颜色上）会直接掉到阈值以下，整块区域随之漏检。这里换成
+     * 假设驱动的度量：取边界两侧各 k 像素的均值，若内侧取反后与外侧接近
+     * （残差小）、且两侧本来确有落差（不是平坦区），才记为一条接缝。
+     *
+     * @param vertical true 求竖边界（x-1|x），false 求横边界（y-1|y）
      */
-    private fun rectCandidates(gray: FloatArray, w: Int, h: Int): List<RectI> {
+    private fun invSeamMap(px: IntArray, w: Int, h: Int, vertical: Boolean): FloatArray {
+        val out = FloatArray(w * h)
+        val n = if (vertical) w else h
+        val m = if (vertical) h else w
+        val k = max(2, (0.010f * min(w, h)).roundToInt())
+        if (n <= 2 * k + 1) return out
+
+        // 前缀和，布局 [i][j][3]，i 为滑动方向、j 为另一方向
+        val pref = FloatArray((n + 1) * m * 3)
+        for (j in 0 until m) {
+            var r = 0f; var g = 0f; var b = 0f
+            for (i in 0..n) {
+                val o = (i * m + j) * 3
+                pref[o] = r; pref[o + 1] = g; pref[o + 2] = b
+                if (i < n) {
+                    val c = if (vertical) px[j * w + i] else px[i * w + j]
+                    r += ((c shr 16) and 0xFF).toFloat()
+                    g += ((c shr 8) and 0xFF).toFloat()
+                    b += (c and 0xFF).toFloat()
+                }
+            }
+        }
+
+        for (i in 1 until n) {
+            val i0 = max(0, i - k)
+            val i1 = min(n, i + k)
+            val ln = (i - i0).toFloat()
+            val rn = (i1 - i).toFloat()
+            for (j in 0 until m) {
+                val p0 = (i0 * m + j) * 3
+                val p1 = (i * m + j) * 3
+                val p2 = (i1 * m + j) * 3
+                val lr = (pref[p1] - pref[p0]) / ln
+                val lg = (pref[p1 + 1] - pref[p0 + 1]) / ln
+                val lb = (pref[p1 + 2] - pref[p0 + 2]) / ln
+                val rr = (pref[p2] - pref[p1]) / rn
+                val rg = (pref[p2 + 1] - pref[p1 + 1]) / rn
+                val rb = (pref[p2 + 2] - pref[p1 + 2]) / rn
+                val res = (abs(255f - lr - rr) + abs(255f - lg - rg) + abs(255f - lb - rb)) / 3f
+                if (res >= Tuning.SEAM_RESIDUAL) continue
+                val dif = (abs(lr - rr) + abs(lg - rg) + abs(lb - rb)) / 3f
+                if (dif <= Tuning.SEAM_MIN_STEP) continue
+                if (vertical) out[j * w + i] = 1f else out[i * w + j] = 1f
+            }
+        }
+        return out
+    }
+
+    /**
+     * 提出候选矩形，两路来源：
+     *  1. 通用边缘图 —— 高对比边界，也覆盖“贴图覆盖”这种不可逆情况；
+     *  2. 反色接缝图 —— 由反色假设直接推出，弱边也能抓到。
+     */
+    private fun rectCandidates(gray: FloatArray, seamV: FloatArray, seamH: FloatArray,
+                               w: Int, h: Int): List<RectI> {
         val ex = FloatArray(w * h)
         val ey = FloatArray(w * h)
         for (y in 0 until h) {
@@ -265,33 +325,57 @@ class InversionDetector {
             for (x in 0 until w) ey[base + x] = abs(gray[next + x] - gray[base + x]) / 255f
         }
 
-        val thr = Tuning.EDGE_THRESHOLD
         val minRun = max(10, (0.030f * min(w, h)).toInt())
         val tol = max(2, (0.008f * min(w, h)).toInt())
         val minSide = max(10, (Tuning.MIN_SIDE_RATIO * min(w, h)).toInt())
         val maxArea = Tuning.MAX_AREA_RATIO * w * h
 
-        val gap = max(2, (0.006f * min(w, h)).toInt())
-        val vRuns = ArrayList<Run>(256)
-        collectRuns(ex, w, h, vertical = true, thr = thr, minLen = minRun, gap = gap, out = vRuns)
-        if (vRuns.size < 2) return emptyList()
+        val out = ArrayList<RectI>(96)
+        addCandidates(ex, ey, Tuning.EDGE_THRESHOLD,
+            max(2, (0.006f * min(w, h)).toInt()), w, h, minRun, minSide, maxArea, tol, out)
+        // 反色缝隙本来就会被穿过边界的内容打断，需要更宽的间隙容差才能连成一条
+        addCandidates(seamV, seamH, 0.5f,
+            max(3, (0.012f * min(w, h)).toInt()), w, h, minRun, minSide, maxArea, tol, out)
 
+        // 去重：同一个框可能被两路都提出来
+        val kept = ArrayList<RectI>(out.size)
+        for (r in out.sortedByDescending { it.w.toLong() * it.h }) {
+            if (kept.all { it.iou(r) < 0.6f }) kept.add(r)
+        }
+        return kept
+    }
+
+    /**
+     * 在给定的二值图上做“垂直游程配对 → 验证上下边”。
+     */
+    private fun addCandidates(
+        bx: FloatArray, by: FloatArray, thr: Float, gap: Int,
+        w: Int, h: Int, minRun: Int, minSide: Int, maxArea: Float, tol: Int,
+        out: MutableList<RectI>
+    ) {
+        val vRuns = ArrayList<Run>(256)
+        collectRuns(bx, w, h, vertical = true, thr = thr, minLen = minRun, gap = gap, out = vRuns)
+        if (vRuns.size < 2) return
+
+        // 先按长度截断（短边不可能构成矩形），再按位置排序 ——
+        // 下面的配对循环假定 pos 递增，顺序错了会把绝大多数配对直接跳过
         vRuns.sortWith(compareByDescending { it.len })
-        if (vRuns.size > Tuning.MAX_RUNS) vRuns.subList(Tuning.MAX_RUNS, vRuns.size).clear()
+        val sel = ArrayList(vRuns.subList(0, min(vRuns.size, Tuning.MAX_RUNS)))
+        sel.sortWith(compareBy { it.pos })
+        if (sel.size < 2) return
 
         fun rowCoverage(y: Int, x1: Int, x2: Int): Float {
             if (x2 <= x1 || y < 0 || y >= h) return 0f
             var n = 0
             var x = x1
-            while (x < x2) { if (ey[y * w + x] > thr) n++; x++ }
+            while (x < x2) { if (by[y * w + x] > thr) n++; x++ }
             return n.toFloat() / (x2 - x1)
         }
 
-        val out = ArrayList<RectI>(64)
-        for (i in vRuns.indices) {
-            val a = vRuns[i]
-            for (j in i + 1 until vRuns.size) {
-                val bRun = vRuns[j]
+        for (i in sel.indices) {
+            val a = sel[i]
+            for (j in i + 1 until sel.size) {
+                val bRun = sel[j]
                 if (bRun.pos - a.pos < minSide) continue
                 // 两条垂直边必须在高度上大幅重叠：间隙容差会让游程略微越过角点，
                 // 因此用重叠比例判断，而不是绝对端点差
@@ -314,11 +398,10 @@ class InversionDetector {
                 }
                 if (covT >= 0.5f && covB >= 0.5f && bestB - bestT >= minSide) {
                     out.add(RectI(a.pos, bestT, bRun.pos, bestB))
-                    if (out.size >= Tuning.MAX_RECTS) return out
+                    if (out.size >= Tuning.MAX_RECTS) return
                 }
             }
         }
-        return out
     }
 
     /**

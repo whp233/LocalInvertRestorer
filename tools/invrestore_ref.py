@@ -70,6 +70,9 @@ class Rect:
     def h(self) -> int:
         return self.b - self.t
 
+    def area(self) -> int:
+        return self.w * self.h
+
     def iou(self, o: "Rect") -> float:
         ix = max(0, min(self.r, o.r) - max(self.l, o.l))
         iy = max(0, min(self.b, o.b) - max(self.t, o.t))
@@ -248,39 +251,48 @@ def _runs(mask_1d: np.ndarray, min_len: int, gap: int = 3):
     return out
 
 
-def rect_candidates(gray: np.ndarray, max_runs: int = 160,
-                    max_rects: int = 400) -> list[Rect]:
+def inversion_seam_maps(img: np.ndarray, k: int = 3, tau: float = 40.0,
+                        min_step: float = 8.0):
     """
-    Propose rectangles whose four sides are long, straight, high-contrast edges.
+    逐像素判定「这里像不像一条反色边界」。
 
-    Local inversion / pasting tools almost always produce a hard rectangular
-    border, so we look for vertical edge runs and pair the ones that start and
-    end at (almost) the same height, then confirm the horizontal sides exist.
+    通用边缘图会把所有强边都算进来，一条弱边（比如反色块的左边恰好压在
+    与自身反相后很接近的颜色上）就直接掉到阈值以下，整块区域随之漏检。
+    这里换成假设驱动的度量：取边界两侧各 k 个像素的均值，若内侧取反后与
+    外侧接近（残差小）、同时两侧本来确实有落差（不是平坦区），才认为像反色接缝。
+
+    返回 (maskV, maskH)：maskV[y, x] 表示竖边界落在 x-1|x 之间。
     """
-    h, w = gray.shape
-    thr = 0.055
-    ex = np.abs(np.diff(gray, axis=1)) / 255.0
-    ey = np.abs(np.diff(gray, axis=0)) / 255.0
-    ex = np.pad(ex, ((0, 0), (0, 1)), mode="edge")
-    ey = np.pad(ey, ((0, 1), (0, 0)), mode="edge")
-    bx, by = ex > thr, ey > thr
+    h, w = img.shape[:2]
+    out = []
+    for axis in (1, 0):
+        n = w if axis == 1 else h
+        cs = np.cumsum(np.pad(img, ((0, 0), (1, 0), (0, 0)) if axis == 1
+                              else ((1, 0), (0, 0), (0, 0))), axis=axis)
 
-    min_run = max(10, int(0.030 * min(h, w)))
-    gap = max(2, int(0.006 * min(h, w)))
-    vrun = [(x, s, e) for x in range(w) for s, e in _runs(bx[:, x], min_run, gap)]
-    hrun = [(y, s, e) for y in range(h) for s, e in _runs(by[y, :], min_run, gap)]
+        def band(a, b, cs=cs, axis=axis):
+            return (cs[:, b] - cs[:, a]) / max(1, b - a) if axis == 1 else \
+                   (cs[b] - cs[a]) / max(1, b - a)
 
-    def thin(runs, key):
-        runs.sort(key=key, reverse=True)
-        return runs[:max_runs]
+        inv = np.full((h, w), 255.0, dtype=np.float32)
+        raw = np.zeros((h, w), dtype=np.float32)
+        for i in range(1, n):
+            lo = band(max(0, i - k), i)
+            hi = band(i, min(n, i + k))
+            res = np.abs(255.0 - lo - hi).mean(axis=-1)
+            dif = np.abs(lo - hi).mean(axis=-1)
+            if axis == 1:
+                inv[:, i] = res
+                raw[:, i] = dif
+            else:
+                inv[i, :] = res
+                raw[i, :] = dif
+        out.append((inv < tau) & (raw > min_step))
+    return out[0], out[1]
 
-    vrun = thin(vrun, lambda r: (r[2] - r[1]))
-    hrun = thin(hrun, lambda r: (r[2] - r[1]))
 
-    min_side = max(10, int(MIN_SIDE_RATIO * min(h, w)))
-    max_area = MAX_AREA_RATIO * w * h
-    tol = max(2, int(0.008 * min(h, w)))
-
+def _pair_runs(vrun, hrun, maskH, h, w, min_side, max_area, tol, max_rects):
+    """把高度重叠的两条垂直游程配对，再验证上下两条水平边确实存在。"""
     out: list[Rect] = []
     for i in range(len(vrun)):
         x1, a1, b1 = vrun[i]
@@ -296,16 +308,14 @@ def rect_candidates(gray: np.ndarray, max_runs: int = 160,
             t, b = max(a1, a2), min(b1, b2)
             if b - t < min_side or (x2 - x1) * (b - t) > max_area:
                 continue
-            # confirm both horizontal sides are mostly edges; the exact row may
-            # sit a pixel or two off the run endpoints, so search a small band
             best_t, cov_t = t, 0.0
             for tt in range(max(0, t - tol), min(h, t + tol + 1)):
-                c = float(by[tt, x1:x2].mean())
+                c = float(maskH[tt, x1:x2].mean())
                 if c > cov_t:
                     best_t, cov_t = tt, c
             best_b, cov_b = b, 0.0
             for bb in range(max(0, b - tol), min(h, b + tol + 1)):
-                c = float(by[bb, x1:x2].mean())
+                c = float(maskH[bb, x1:x2].mean())
                 if c > cov_b:
                     best_b, cov_b = bb, c
             if cov_t >= 0.5 and cov_b >= 0.5 and best_b - best_t >= min_side:
@@ -313,6 +323,59 @@ def rect_candidates(gray: np.ndarray, max_runs: int = 160,
             if len(out) >= max_rects:
                 return out
     return out
+
+
+def rect_candidates(gray: np.ndarray, maskV: np.ndarray | None = None,
+                    maskH: np.ndarray | None = None, max_runs: int = 220,
+                    max_rects: int = 400) -> list[Rect]:
+    """
+    Propose rectangles whose four sides are long, straight, high-contrast edges.
+
+    两路候选来源：
+      1. 通用边缘图 —— 处理高对比边界，也覆盖「贴图覆盖」这类不可逆情况；
+      2. 反色缝隙图 —— 由反色假设直接推出，弱边也能抓到。
+    两路各跑一遍游程配对，最后按 IOU 去重。
+    """
+    h, w = gray.shape
+    thr = 0.055
+    ex = np.abs(np.diff(gray, axis=1)) / 255.0
+    ey = np.abs(np.diff(gray, axis=0)) / 255.0
+    ex = np.pad(ex, ((0, 0), (0, 1)), mode="edge")
+    ey = np.pad(ey, ((0, 1), (0, 0)), mode="edge")
+
+    min_run = max(10, int(0.030 * min(h, w)))
+    gap = max(2, int(0.006 * min(h, w)))
+    # 反色缝隙图本来就会被穿过边界的内容打断，需要更宽的间隙容差才能连成一条
+    inv_gap = max(3, int(0.012 * min(h, w)))
+
+    sources = [(ex > thr, ey > thr, gap)]
+    if maskV is not None and maskH is not None:
+        sources.append((maskV, maskH, inv_gap))
+    min_side = max(10, int(MIN_SIDE_RATIO * min(h, w)))
+    max_area = MAX_AREA_RATIO * w * h
+    tol = max(2, int(0.008 * min(h, w)))
+
+    out: list[Rect] = []
+    for bx, by, gp in sources:
+        vrun = [(x, s, e) for x in range(w) for s, e in _runs(bx[:, x], min_run, gp)]
+        hrun = [(y, s, e) for y in range(h) for s, e in _runs(by[y, :], min_run, gp)]
+        if len(vrun) < 2:
+            continue
+        # 先按长度截断（太短的边不可能是矩形的边），再按 x 排序 ——
+        # _pair_runs 默认 x1 < x2，顺序错了会把绝大多数配对直接跳过
+        vrun.sort(key=lambda r: r[2] - r[1], reverse=True)
+        sel = sorted(vrun[:max_runs], key=lambda r: r[0])
+        out.extend(_pair_runs(sel, hrun, by, h, w,
+                              min_side, max_area, tol, max_rects - len(out)))
+        if len(out) >= max_rects:
+            break
+
+    # 去重：同一个框可能被两路都提出来
+    kept: list[Rect] = []
+    for r in sorted(out, key=lambda z: z.area(), reverse=True):
+        if all(r.iou(k) < 0.6 for k in kept):
+            kept.append(r)
+    return kept
 
 
 def refine(sat: np.ndarray, rc: Rect, mask: int, rad: int = 2) -> Rect:
@@ -340,7 +403,8 @@ def detect(img: np.ndarray) -> list[Candidate]:
     h, w = small.shape[:2]
     sat = integral(small)
     gray = small.mean(axis=2)
-    rects = rect_candidates(gray)
+    mask_v, mask_h = inversion_seam_maps(small)
+    rects = rect_candidates(gray, mask_v, mask_h)
 
     raw: list[Candidate] = []
     for rc in rects:
